@@ -1,0 +1,88 @@
+services:
+
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: logs_postgres
+    cpus: '1'
+    mem_limit: 1g
+
+    environment:
+      POSTGRES_USER: logs_user
+      POSTGRES_PASSWORD: logs_password
+      POSTGRES_DB: logs_db
+
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+
+    command: >
+      postgres
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c min_wal_size=1GB
+      -c max_wal_size=8GB
+      -c work_mem=4MB
+      -c max_connections=200
+      -c synchronous_commit=off
+
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U logs_user -d logs_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1GB
+
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: logs_app
+    cpus: '0.5'
+    mem_limit: 256m
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      DATABASE_URL: postgresql://logs_user:logs_password@postgres:5432/logs_db
+
+      PORT: 8080
+      NODE_ENV: production
+
+      RETENTION_DAYS: 30
+
+      PG_POOL_MAX: ${PG_POOL_MAX:-5}
+      INSERT_BATCH_SIZE: ${INSERT_BATCH_SIZE:-1000}
+      COPY_SERIALIZE_CHUNK_SIZE: ${COPY_SERIALIZE_CHUNK_SIZE:-2000}
+      BODY_LIMIT_BYTES: ${BODY_LIMIT_BYTES:-10485760}
+      LOGS_PURGE_TOKEN: ${LOGS_PURGE_TOKEN:-}
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256MB
+
+    restart: "no"
+
+
+volumes:
+  postgres_data:
