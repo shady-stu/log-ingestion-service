@@ -13,6 +13,7 @@
     "benchmark:aggregate": "node scripts/aggregate-benchmark.js",
     "benchmark:mixed": "node scripts/mixed-read-benchmark.js",
     "benchmark:coordinator": "node scripts/coordinator-acceptance-benchmark.js",
+    "test:contract": "node scripts/contract-smoke-test.js",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
     "db:generate": "drizzle-kit generate",
@@ -27,13 +28,13 @@
     "pg-copy-streams": "^7.0.0"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.12",
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.19.43",
     "@types/pg": "^8.11.6",
     "@types/pg-copy-streams": "^1.2.5",
-    "drizzle-kit": "^0.31.10",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
+    "drizzle-kit": "^0.31.10",
     "eslint": "^8.57.0",
     "jest": "^29.7.0",
     "ts-jest": "^29.1.4",

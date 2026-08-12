@@ -1,6 +1,6 @@
 import { buildDeleteExpiredLogsQuery } from "../src/repositories/retention.repository";
 import { RetentionService } from "../src/services/retention.service";
-
+import {describe, expect, it, jest} from '@jest/globals';
 describe("retention repository SQL", () => {
   it("builds a deterministic bounded and parameterized deletion", () => {
     const cutoff = new Date("2026-07-13T12:00:00.000Z");
@@ -53,11 +53,13 @@ describe("RetentionService", () => {
   });
 
   it("processes multiple bounded batches and yields between full batches", async () => {
-    const deleteBatch = jest.fn()
+    const deleteBatch = jest.fn<
+      (cutoff: Date, batchSize: number) => Promise<number>
+    >()
       .mockResolvedValueOnce(2)
       .mockResolvedValueOnce(2)
       .mockResolvedValueOnce(1);
-    const pause = jest.fn(async () => undefined);
+    const pause = jest.fn<() => Promise<void>>(async () => undefined);
     const service = createService(deleteBatch, { batchSize: 2, pause });
 
     await expect(service.runOnce()).resolves.toBe(5);
@@ -66,7 +68,9 @@ describe("RetentionService", () => {
   });
 
   it("returns zero for an empty retention run", async () => {
-    const deleteBatch = jest.fn().mockResolvedValue(0);
+    const deleteBatch = jest.fn<
+      (cutoff: Date, batchSize: number) => Promise<number>
+    >().mockResolvedValue(0);
     const service = createService(deleteBatch);
 
     await expect(service.runOnce()).resolves.toBe(0);
@@ -75,15 +79,20 @@ describe("RetentionService", () => {
 
   it("surfaces a directly requested run failure", async () => {
     const failure = new Error("database unavailable");
-    const service = createService(async () => Promise.reject(failure));
+    const deleteBatch = jest.fn<
+      (cutoff: Date, batchSize: number) => Promise<number>
+    >(async () => Promise.reject(failure));
+    const service = createService(deleteBatch);
 
     await expect(service.runOnce()).rejects.toBe(failure);
   });
 
   it("reports scheduled failures without crashing or overlapping", async () => {
     jest.useFakeTimers();
-    const onError = jest.fn();
-    const deleteBatch = jest.fn().mockRejectedValue(new Error("scheduled failure"));
+    const onError = jest.fn<(error: unknown) => void>();
+    const deleteBatch = jest.fn<
+      (cutoff: Date, batchSize: number) => Promise<number>
+    >().mockRejectedValue(new Error("scheduled failure"));
     const service = createService(deleteBatch, { intervalMs: 10, onError });
 
     service.start();
@@ -101,7 +110,9 @@ describe("RetentionService", () => {
 
   it("joins an active run instead of starting a concurrent run", async () => {
     const deletion = deferred<number>();
-    const deleteBatch = jest.fn(async () => deletion.promise);
+    const deleteBatch = jest.fn<
+      (cutoff: Date, batchSize: number) => Promise<number>
+    >(async () => deletion.promise);
     const service = createService(deleteBatch);
 
     const first = service.runOnce();
@@ -114,7 +125,9 @@ describe("RetentionService", () => {
 
   it("stops scheduling and waits for active work to finish", async () => {
     const deletion = deferred<number>();
-    const deleteBatch = jest.fn(async () => deletion.promise);
+    const deleteBatch = jest.fn<
+      (cutoff: Date, batchSize: number) => Promise<number>
+    >(async () => deletion.promise);
     const service = createService(deleteBatch, { batchSize: 2 });
     const run = service.runOnce();
     const stopping = service.stop();

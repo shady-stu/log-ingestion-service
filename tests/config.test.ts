@@ -1,7 +1,7 @@
 import { loadRuntimeConfig } from "../src/config";
 
 const databaseUrl = "postgresql://logs_user:logs_password@postgres:5432/logs_db";
-
+import {describe, expect, it, jest} from '@jest/globals';
 describe("runtime configuration", () => {
   it("loads typed defaults from one source", () => {
     const config = loadRuntimeConfig({ DATABASE_URL: databaseUrl });
@@ -19,6 +19,8 @@ describe("runtime configuration", () => {
       copySerializeChunkSize: 2000,
       retentionDays: 30,
       logsPurgeToken: undefined,
+      authEnabled: false,
+      loadgenApiKey: undefined,
     });
   });
 
@@ -32,6 +34,8 @@ describe("runtime configuration", () => {
       BODY_LIMIT_BYTES: "2048",
       PG_IDLE_TIMEOUT_MS: "0",
       LOGS_PURGE_TOKEN: "secret",
+      AUTH_ENABLED: "true",
+      LOADGEN_API_KEY: "loadgen-secret",
     });
 
     expect(config).toMatchObject({
@@ -42,6 +46,8 @@ describe("runtime configuration", () => {
       bodyLimitBytes: 2048,
       pgIdleTimeoutMs: 0,
       logsPurgeToken: "secret",
+      authEnabled: true,
+      loadgenApiKey: "loadgen-secret",
     });
   });
 
@@ -57,9 +63,17 @@ describe("runtime configuration", () => {
     ["PG_POOL_MAX", "6"],
     ["INSERT_BATCH_SIZE", "5001"],
     ["COPY_SERIALIZE_CHUNK_SIZE", "0"],
+    ["AUTH_ENABLED", "yes"],
   ])("rejects invalid %s=%s", (name, value) => {
     expect(() => loadRuntimeConfig({ DATABASE_URL: databaseUrl, [name]: value }))
       .toThrow();
+  });
+
+  it("requires the load-generator key when authentication is enabled", () => {
+    expect(() => loadRuntimeConfig({
+      DATABASE_URL: databaseUrl,
+      AUTH_ENABLED: "true",
+    })).toThrow("LOADGEN_API_KEY must be set");
   });
 
   it.each([

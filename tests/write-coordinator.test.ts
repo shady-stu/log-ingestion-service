@@ -1,11 +1,14 @@
 import { LogsService } from "../src/services/ingestion.service";
 import { WriteCoordinator } from "../src/services/write-coordinator";
 import { type Log } from "../src/types";
+import { jest } from "@jest/globals";
 
 describe("WriteCoordinator", () => {
   it("coalesces requests and resolves each only after COPY succeeds", async () => {
     const copyCompleted = deferred<void>();
-    const writeBatch = jest.fn(async () => copyCompleted.promise);
+    const writeBatch = jest.fn<(logs: Log[]) => Promise<void>>(
+      async () => copyCompleted.promise
+    );
     const coordinator = new WriteCoordinator(writeBatch, {
       targetCopyBatch: 3,
       maxPendingLogs: 10,
@@ -84,7 +87,9 @@ describe("WriteCoordinator", () => {
 
   it("flushes pending writes before shutdown completes", async () => {
     const copyCompleted = deferred<void>();
-    const writeBatch = jest.fn(async () => copyCompleted.promise);
+    const writeBatch = jest.fn<(logs: Log[]) => Promise<void>>(
+      async () => copyCompleted.promise
+    );
     const coordinator = new WriteCoordinator(writeBatch, {
       targetCopyBatch: 10,
       maxPendingLogs: 20,
@@ -113,7 +118,7 @@ describe("WriteCoordinator", () => {
 
   it("holds new requests outside the bounded pending-log capacity", async () => {
     const firstCopyCompleted = deferred<void>();
-    const writeBatch = jest.fn()
+    const writeBatch = jest.fn<(logs: Log[]) => Promise<void>>()
       .mockImplementationOnce(async () => firstCopyCompleted.promise)
       .mockImplementation(async () => undefined);
     const coordinator = new WriteCoordinator(writeBatch, {

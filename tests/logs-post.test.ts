@@ -3,7 +3,7 @@ import { createPostLogsHandler } from "../src/api/handlers/logs.handler";
 import { LogsService } from "../src/services/ingestion.service";
 import { validateLog } from "../src/services/log-validator";
 import { type Log } from "../src/types";
-
+import {describe, expect, it, jest} from '@jest/globals';
 describe("POST /logs HTTP behavior", () => {
   it("accepts and persists a valid batch", async () => {
     const persist = jest.fn(async (logs: Log[]) => logs.length);

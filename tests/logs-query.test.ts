@@ -8,7 +8,8 @@ import {
   parseLogsQuery,
 } from "../src/services/logs-query";
 import { createLogsPage, LogsQueryService } from "../src/services/logs-query.service";
-
+import { type StoredLog } from "../src/types";
+import {describe, expect, it, jest} from '@jest/globals';
 const timestamp = "2026-07-20T14:32:01.123Z";
 
 describe("GET /logs query parser", () => {
@@ -190,7 +191,7 @@ describe("GET /logs HTTP behavior", () => {
     app.get("/logs", createGetLogsHandler(service));
 
     const firstResponse = await app.inject("/logs?limit=10");
-    const firstPage = firstResponse.json();
+    const firstPage = firstResponse.json() as { logs: StoredLog[]; next_cursor: string };
     storedRows.unshift({
       ...rows[0],
       id: "26",
@@ -200,7 +201,7 @@ describe("GET /logs HTTP behavior", () => {
     const secondResponse = await app.inject(
       `/logs?limit=10&cursor=${encodeURIComponent(firstPage.next_cursor)}`
     );
-    const secondPage = secondResponse.json();
+    const secondPage = secondResponse.json() as { logs: StoredLog[]; next_cursor: string | null };
     const ids = [...firstPage.logs, ...secondPage.logs].map((log) => log.id);
 
     expect(firstResponse.statusCode).toBe(200);
