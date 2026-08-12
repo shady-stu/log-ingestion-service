@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import { createDeleteLogsHandler } from "../src/api/handlers/admin.handler";
-
+import {describe, expect, it, jest} from '@jest/globals';
 describe("DELETE /logs admin authorization", () => {
   const token = "test-admin-token";
 

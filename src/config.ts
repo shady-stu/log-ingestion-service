@@ -29,12 +29,15 @@ export type RuntimeConfig = {
   copySerializeChunkSize: number;
   retentionDays: number;
   logsPurgeToken?: string;
+  authEnabled: boolean;
+  loadgenApiKey?: string;
 };
 
 export function loadRuntimeConfig(
   env: NodeJS.ProcessEnv = process.env
 ): RuntimeConfig {
   const pgPoolMax = readInteger(env, "PG_POOL_MAX", REQUIRED_TOTAL_CONNECTIONS, 1);
+  const authEnabled = readBoolean(env, "AUTH_ENABLED", false);
 
   if (pgPoolMax !== REQUIRED_TOTAL_CONNECTIONS) {
     throw new Error("PG_POOL_MAX must remain exactly 5");
@@ -76,6 +79,11 @@ export function loadRuntimeConfig(
     ),
     retentionDays: readInteger(env, "RETENTION_DAYS", 30, 1),
     logsPurgeToken: readOptionalSecret(env.LOGS_PURGE_TOKEN),
+    authEnabled,
+    loadgenApiKey: readRequiredAuthKey(
+      readOptionalSecret(env.LOADGEN_API_KEY),
+      authEnabled
+    ),
   };
 }
 
@@ -154,6 +162,35 @@ function readInternalDatabaseUrl(value: string | undefined): string {
 
 function readOptionalSecret(value: string | undefined): string | undefined {
   return value && value.length > 0 ? value : undefined;
+}
+
+function readBoolean(
+  env: NodeJS.ProcessEnv,
+  name: string,
+  defaultValue: boolean
+): boolean {
+  const value = env[name];
+
+  if (value === undefined) {
+    return defaultValue;
+  }
+
+  if (value !== "true" && value !== "false") {
+    throw new Error(`${name} must be true or false`);
+  }
+
+  return value === "true";
+}
+
+function readRequiredAuthKey(
+  value: string | undefined,
+  authEnabled: boolean
+): string | undefined {
+  if (authEnabled && !value) {
+    throw new Error("LOADGEN_API_KEY must be set when AUTH_ENABLED=true");
+  }
+
+  return value;
 }
 
 export const runtimeConfig = loadRuntimeConfig();

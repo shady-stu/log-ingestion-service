@@ -4,7 +4,7 @@ import { buildAggregateQuery } from "../src/repositories/logs-aggregate.reposito
 import { parseAggregateQuery } from "../src/services/logs-aggregate/parser";
 import { LogsAggregateService } from "../src/services/logs-aggregate.service";
 import { InvalidLogsQueryError } from "../src/services/logs-query";
-
+import {describe, expect, it, jest} from '@jest/globals';
 const since = "2026-08-11T12:00:00.000Z";
 const until = "2026-08-11T13:00:00.000Z";
 
