@@ -6,11 +6,17 @@ import { getLogsHandler } from "../handlers/logs-query.handler";
 
 export async function registerLogsRoutes(
   app: FastifyInstance,
-  authHook?: BearerAuthHook
+  queryAuthHook?: BearerAuthHook,
+  ingestAuthHook?: BearerAuthHook
 ) {
-  const routeOptions = { onRequest: authHook ? [authHook] : [] };
+  const queryRouteOptions = {
+    onRequest: queryAuthHook ? [queryAuthHook] : [],
+  };
+  const ingestRouteOptions = {
+    onRequest: ingestAuthHook ? [ingestAuthHook] : [],
+  };
 
-  app.get("/logs/aggregate", routeOptions, getLogsAggregateHandler);
-  app.get("/logs", routeOptions, getLogsHandler);
-  app.post("/logs", routeOptions, postLogsHandler);
+  app.get("/logs/aggregate", queryRouteOptions, getLogsAggregateHandler);
+  app.get("/logs", queryRouteOptions, getLogsHandler);
+  app.post("/logs", ingestRouteOptions, postLogsHandler);
 }

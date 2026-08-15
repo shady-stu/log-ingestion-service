@@ -34,6 +34,68 @@ describe("bearer authentication hook", () => {
     expect(response.json()).toEqual({ ok: true });
     await app.close();
   });
+
+  it("accepts the optional X-API-Key header", async () => {
+    const app = createApp(token);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/protected",
+      headers: { "x-api-key": token },
+    });
+
+    expect(response.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("returns 403 when the authenticated key lacks a required scope", async () => {
+    const app = Fastify();
+    app.get(
+      "/protected",
+      {
+        onRequest: [createBearerAuthHook(token, {
+          requiredScopes: ["ingest"],
+          grantedScopes: ["query"],
+        })],
+      },
+      async () => ({ ok: true })
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/protected",
+      headers: { authorization: `Bearer ${token}` },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json()).toEqual({ error: "Forbidden" });
+    await app.close();
+  });
+
+  it("rate limits repeated invalid credentials with Retry-After", async () => {
+    const app = createApp(token);
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      const response = await app.inject({
+        method: "GET",
+        url: "/protected",
+        headers: { authorization: "Bearer wrong-token" },
+      });
+
+      expect(response.statusCode).toBe(401);
+    }
+
+    const limitedResponse = await app.inject({
+      method: "GET",
+      url: "/protected",
+      headers: { authorization: "Bearer wrong-token" },
+    });
+
+    expect(limitedResponse.statusCode).toBe(429);
+    expect(Number(limitedResponse.headers["retry-after"])).toBeGreaterThan(0);
+    expect(limitedResponse.json()).toEqual({ error: "Too Many Requests" });
+    await app.close();
+  });
 });
 
 function createApp(token: string) {

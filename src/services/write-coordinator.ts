@@ -1,9 +1,9 @@
 import { insertLogs } from "../repositories/logs.repository";
 import { type Log } from "../types";
 
-const TARGET_COPY_BATCH = 5000;
+const TARGET_COPY_BATCH = 15000;
 const MAX_PENDING_LOGS = 30000;
-const FLUSH_DELAY_MS = 70;
+const FLUSH_DELAY_MS = 3;
 
 type PendingWrite = {
   logs: Log[];

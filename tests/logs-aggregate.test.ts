@@ -165,3 +165,34 @@ describe("GET /logs/aggregate HTTP behavior", () => {
     await app.close();
   });
 });
+
+describe("aggregate result cache", () => {
+  const query = parseAggregateQuery({ since, until, bucket: "1m" });
+
+  it("reuses identical results for five seconds", async () => {
+    let now = 1000;
+    const find = jest.fn(async () => [
+      { start: since, group: null, count: 1 },
+    ]);
+    const service = new LogsAggregateService(find, () => now);
+
+    await service.aggregate(query);
+    await service.aggregate(query);
+    expect(find).toHaveBeenCalledTimes(1);
+
+    now += 5001;
+    await service.aggregate(query);
+    expect(find).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not cache failed queries", async () => {
+    const find = jest.fn()
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce([]);
+    const service = new LogsAggregateService(find);
+
+    await expect(service.aggregate(query)).rejects.toThrow("database unavailable");
+    await expect(service.aggregate(query)).resolves.toEqual({ buckets: [] });
+    expect(find).toHaveBeenCalledTimes(2);
+  });
+});

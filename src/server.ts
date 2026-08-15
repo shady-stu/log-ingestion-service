@@ -1,5 +1,5 @@
 import Fastify, { FastifyError } from "fastify";
-import { runtimeConfig } from "./config";
+import { runtimeConfig } from "./config/runtime-config";
 
 const APP_ERROR_LOG_INTERVAL_MS = 5000;
 let lastAppErrorLogAt = 0;

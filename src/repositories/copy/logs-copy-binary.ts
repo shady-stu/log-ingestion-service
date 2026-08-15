@@ -1,5 +1,5 @@
 import { type Log } from "../../types";
-import { runtimeConfig } from "../../config";
+import { runtimeConfig } from "../../config/runtime-config";
 
 const POSTGRES_EPOCH_MS = Date.UTC(2000, 0, 1);
 const COPY_BINARY_HEADER = Buffer.from([

@@ -1,7 +1,7 @@
 import { timingSafeEqual } from "crypto";
 import { FastifyReply, FastifyRequest } from "fastify";
 import { truncateLogs } from "../../repositories/admin.repository";
-import { runtimeConfig } from "../../config";
+import { runtimeConfig } from "../../config/runtime-config";
 
 type TruncateLogs = () => Promise<void>;
 

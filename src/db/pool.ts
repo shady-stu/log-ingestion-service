@@ -1,14 +1,16 @@
 import { Pool } from "pg";
-import { runtimeConfig } from "../config";
+import { runtimeConfig } from "../config/runtime-config";
 import { databaseClientConfig } from "./config";
 
 const POOL_ERROR_LOG_INTERVAL_MS = 5000;
+const READ_POOL_MAX = 4;
 let lastPoolErrorLogAt = 0;
 
 const readPool = new Pool({
   ...databaseClientConfig,
-  max: runtimeConfig.readPoolMax,
+  max: READ_POOL_MAX,
   idleTimeoutMillis: runtimeConfig.pgIdleTimeoutMs,
+  options: "-c max_parallel_workers_per_gather=0",
 });
 
 readPool.on("error", (err) => {
