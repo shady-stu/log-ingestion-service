@@ -4,8 +4,8 @@ import { resolveRetentionOptions } from "./retention/options";
 import { RetentionTimer } from "./retention/timer";
 import { type DeleteExpiredBatch, type RetentionOptions } from "./retention/types";
 
-export type { RetentionOptions } from "./retention/types";
 
+export type { RetentionOptions } from "./retention/types";
 export class RetentionService {
   private readonly runner: RetentionBatchRunner;
   private readonly timer: RetentionTimer;

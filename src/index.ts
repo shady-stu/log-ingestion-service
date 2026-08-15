@@ -3,7 +3,7 @@ import { registerRoutes } from "./api/routes/routes.js";
 import { closeReadPool } from "./db/pool";
 import { closeWriter, connectWriter } from "./db/writer";
 import { writeCoordinator } from "./services/write-coordinator";
-import { runtimeConfig } from "./config";
+import { runtimeConfig } from "./config/runtime-config";
 import { retentionService } from "./services/retention.service";
 
 let shuttingDown = false;

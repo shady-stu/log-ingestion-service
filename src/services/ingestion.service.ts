@@ -1,7 +1,7 @@
 import { validateLog } from "./log-validator";
 import { type IngestionResult, type Log, type RejectedLog } from "../types";
 import { writeCoordinator } from "./write-coordinator";
-import { runtimeConfig } from "../config";
+import { runtimeConfig } from "../config/runtime-config";
 
 export type PersistLogs = (logs: Log[]) => Promise<number>;
 

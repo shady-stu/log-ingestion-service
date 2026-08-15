@@ -49,7 +49,7 @@ jobs:
           project=logs-ci-auth-disabled
           docker compose -p "$project" down -v --remove-orphans || true
           trap 'docker compose -p "$project" down -v --remove-orphans' EXIT
-          AUTH_ENABLED=false docker compose -p "$project" up -d --build
+          NODE_ENV=development AUTH_ENABLED=false docker compose -p "$project" up -d --build
           for attempt in {1..30}; do
             if curl --fail --silent http://localhost:8080/health >/dev/null; then
               break
@@ -66,7 +66,7 @@ jobs:
           token=ci-loadgen-api-key
           docker compose -p "$project" down -v --remove-orphans || true
           trap 'docker compose -p "$project" down -v --remove-orphans' EXIT
-          AUTH_ENABLED=true LOADGEN_API_KEY="$token" docker compose -p "$project" up -d --build
+          NODE_ENV=production AUTH_ENABLED=true LOADGEN_API_KEY="$token" DATABASE_URL=postgresql://logs_user:logs_password@postgres:5432/logs_db docker compose -p "$project" up -d --build
           for attempt in {1..30}; do
             if curl --fail --silent -H "Authorization: Bearer $token" http://localhost:8080/health >/dev/null; then
               break

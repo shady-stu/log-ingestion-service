@@ -1,4 +1,4 @@
-import { runtimeConfig } from "../../config";
+import { runtimeConfig } from "../../config/runtime-config";
 import { type RetentionOptions, type RetentionSettings } from "./types";
 
 const DEFAULT_BATCH_SIZE = 1000;

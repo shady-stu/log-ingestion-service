@@ -1,23 +1,17 @@
 import { defineConfig } from "drizzle-kit";
 import "dotenv/config";
+import { DEFAULT_DATABASE_URL } from "./src/config/constants";
 
-const dbUrl = process.env.DATABASE_URL;
+const dbUrl = process.env.DATABASE_URL || DEFAULT_DATABASE_URL;
 
-if (!dbUrl) {
-  throw new Error("DATABASE_URL is not set");
-}
+try {
+  const parsedDbUrl = new URL(dbUrl);
 
-const parsedDbUrl = new URL(dbUrl);
-
-if (
-  parsedDbUrl.protocol !== "postgresql:" ||
-  parsedDbUrl.hostname !== "postgres" ||
-  parsedDbUrl.port !== "5432" ||
-  parsedDbUrl.pathname !== "/logs_db"
-) {
-  throw new Error(
-    "DATABASE_URL must point to the internal postgres service and logs_db"
-  );
+  if (parsedDbUrl.protocol !== "postgresql:" && parsedDbUrl.protocol !== "postgres:") {
+    throw new Error();
+  }
+} catch {
+  throw new Error("DATABASE_URL must be a valid PostgreSQL URL");
 }
 
 export default defineConfig({

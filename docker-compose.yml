@@ -9,7 +9,7 @@ services:
 
     environment:
       POSTGRES_USER: logs_user
-      POSTGRES_PASSWORD: logs_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-logs_password}
       POSTGRES_DB: logs_db
 
     volumes:
@@ -57,14 +57,13 @@ services:
       - "8080:8080"
 
     environment:
-      DATABASE_URL: postgresql://logs_user:logs_password@postgres:5432/logs_db
+      DATABASE_URL: ${DATABASE_URL:-}
 
       PORT: 8080
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
 
       RETENTION_DAYS: 30
 
-      PG_POOL_MAX: ${PG_POOL_MAX:-5}
       INSERT_BATCH_SIZE: ${INSERT_BATCH_SIZE:-1000}
       COPY_SERIALIZE_CHUNK_SIZE: ${COPY_SERIALIZE_CHUNK_SIZE:-2000}
       BODY_LIMIT_BYTES: ${BODY_LIMIT_BYTES:-10485760}

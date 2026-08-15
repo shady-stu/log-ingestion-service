@@ -8,6 +8,13 @@
       "when": 1785884195582,
       "tag": "0000_even_rage",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786819000000,
+      "tag": "0001_tune_logs_ingestion",
+      "breakpoints": true
     }
   ]
 }
