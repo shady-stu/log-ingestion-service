@@ -521,6 +521,22 @@ With no override, this command targets the required `15,000 logs/sec`. The scrip
 generates POST traffic only. The documented concurrent ceiling result also ran
 the primary `last hour / 1m` aggregate at one request per second.
 
+To approximate the observed leaderboard workload (`33 logs/request`, inferred
+from its accepted-log and HTTP-request counts) with
+a moving primary aggregate request once per second, run:
+
+```bash
+npm run benchmark:leaderboard
+```
+
+The default `load` scenario runs at 15,000 logs/sec for 120 seconds. It records
+five-second throughput samples, POST and aggregate p50/p95/p99, failures,
+skipped dispatches, drain status, and final data visibility. Set
+`LEADERBOARD_SCENARIO` to `stress`, `spike`, `breakpoint`, or `all`. The `all`
+option runs every scenario sequentially against the same database to reproduce
+the benchmark's cumulative pressure. `LEADERBOARD_DURATION_SCALE` can shorten
+a local smoke run; keep its default value of `1` for comparable measurements.
+
 The packaged `benchmark:aggregate` script is a representative multi-shape benchmark and is not the official acceptance workload. The official primary aggregate must be run concurrently as a one-request-per-second `last hour / 1m` loop.
 
 ### Representative Benchmarks
@@ -570,6 +586,39 @@ These results were measured against the current working tree using Docker Compos
 | Primary aggregate p99 | 1,400.18 ms |
 
 The load generator finished with `inFlight=0` and `drained=true`.
+
+### Leaderboard-Shaped Small-Request Baseline
+
+The external leaderboard uses approximately 33 logs per POST request, inferred
+from its accepted-log and HTTP-request counts. A clean local run of
+`benchmark:leaderboard` used that batch size for 120 seconds at a 15,000
+logs/second target while sending a moving last-hour aggregate once per second.
+This is a local approximation of the observed workload, not a claim that the
+external generator implementation is identical.
+
+| Metric | Result |
+| --- | ---: |
+| Planned logs | 1,800,000 |
+| Dispatched logs | 1,407,582 |
+| Acknowledged logs | 1,370,985 |
+| Visible logs after drain | 1,407,582 |
+| Rejected logs | 0 |
+| Client-timeout logs | 36,597 |
+| Skipped dispatches | 11,892 batches |
+| Acknowledged throughput | 11,424 logs/sec |
+| POST p50 | 1,478.09 ms |
+| POST p95 | 2,943.34 ms |
+| POST p99 | 14,329.03 ms |
+| Aggregate completed | 105 / 120 |
+| Aggregate p50 | 783.06 ms |
+| Aggregate p95 | 13,170.97 ms |
+| Aggregate p99 | 26,070.12 ms |
+
+Every dispatched log was visible after drain. The difference between visible
+and acknowledged logs came from requests that timed out client-side after the
+server had accepted and persisted them. This benchmark exposes the current
+small-request throughput and tail-latency limitation that the 1,000-log request
+benchmark does not exercise.
 
 ### Historical Clean-Start 21,000 Logs/Second Ceiling
 

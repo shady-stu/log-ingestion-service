@@ -13,6 +13,7 @@
     "benchmark:aggregate": "node scripts/aggregate-benchmark.js",
     "benchmark:mixed": "node scripts/mixed-read-benchmark.js",
     "benchmark:coordinator": "node scripts/coordinator-acceptance-benchmark.js",
+    "benchmark:leaderboard": "node scripts/leaderboard-benchmark.js",
     "test:contract": "node scripts/contract-smoke-test.js",
     "lint": "eslint src/**/*.ts",
     "test": "jest",
