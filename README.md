@@ -412,15 +412,16 @@ Authentication is disabled by default:
 AUTH_ENABLED=false
 ```
 
-When enabled:
+When enabled with `LOADGEN_API_KEY` set:
 
-- `LOADGEN_API_KEY` is required at startup.
 - The configured key has full `ingest` and `query` scope.
 - `Authorization: Bearer <key>` and `X-API-Key: <key>` are accepted.
 - Missing or invalid credentials return `401`.
 - A credential without a required scope returns `403`.
 - Ten failed authentication attempts per client IP within one minute are allowed; subsequent failures return `429` and `Retry-After`.
 - When disabled, incoming authorization headers are ignored and do not reject requests.
+
+When `AUTH_ENABLED=true` without `LOADGEN_API_KEY`, the service stays healthy but has no seeded credential; data endpoints return `401`.
 
 The failed-auth limiter is in-memory and per application process. It is not a distributed or general request rate limiter.
 
@@ -456,20 +457,6 @@ The optional purge endpoint is enabled only when `LOGS_PURGE_TOKEN` is non-empty
 | `AUTH_ENABLED` | `false` | Compose authentication toggle |
 | `LOADGEN_API_KEY` | Empty | Compose API key value |
 
-### Benchmark-Only Variables
-
-| Variable | Default | Script |
-| --- | --- | --- |
-| `LOAD_TEST_RATE` | `15000` | `scripts/load-test.js` |
-| `LOAD_TEST_DURATION` | `60` | `scripts/load-test.js` |
-| `LOAD_TEST_BATCH_SIZE` | `1000` | `scripts/load-test.js` |
-| `LOAD_TEST_MAX_IN_FLIGHT` | `30` | `scripts/load-test.js` |
-| `LOAD_TEST_DRAIN_TIMEOUT_SECONDS` | `30` | `scripts/load-test.js` |
-| `QUERY_SEED_COUNT` | `100000` | `scripts/seed-query-dataset.js` |
-| `QUERY_SEED_BATCH_SIZE` | `1000` | `scripts/seed-query-dataset.js` |
-| `QUERY_BENCHMARK_REQUESTS` | `30` | `scripts/query-benchmark.js` |
-| `AGGREGATE_BENCHMARK_REQUESTS` | `5` | `scripts/aggregate-benchmark.js` |
-
 Retention interval, delete batch size, pause, and maximum batches are currently code defaults rather than environment variables.
 
 ## Load-Test Methodology
@@ -499,55 +486,15 @@ No pool, schema, index, SQL, Docker resource, or PostgreSQL configuration change
 
 ### Reproducing the Workload
 
-```bash
-docker compose up -d --build
-curl http://localhost:8080/health
-docker exec logs_postgres psql -U logs_user -d logs_db -tAc "SELECT count(*) FROM logs;"
-```
-
-For a disposable database, seed one million rows:
+Run the course benchmark from the repository root with Docker running and port `8080` free:
 
 ```bash
-QUERY_SEED_COUNT=1000000 node scripts/seed-query-dataset.js
+npx --yes "github:Ahmad-Abbas-Foothill/logs-benchmark-cli#992d9c8" --compose ./docker-compose.yml --full --seed 6122026 --generator-cpus 2
 ```
 
-Run the ingestion generator:
+The pinned CLI version is `@foothill/logs-benchmark 0.2.5`. It prepares the dataset, runs correctness checks, and executes load, stress, spike, and breakpoint scenarios. Use `--help` for its supported options.
 
-```bash
-npm run load:test
-```
-
-With no override, this command targets the required `15,000 logs/sec`. The script itself
-generates POST traffic only. The documented concurrent ceiling result also ran
-the primary `last hour / 1m` aggregate at one request per second.
-
-To approximate the observed leaderboard workload (`33 logs/request`, inferred
-from its accepted-log and HTTP-request counts) with
-a moving primary aggregate request once per second, run:
-
-```bash
-npm run benchmark:leaderboard
-```
-
-The default `load` scenario runs at 15,000 logs/sec for 120 seconds. It records
-five-second throughput samples, POST and aggregate p50/p95/p99, failures,
-skipped dispatches, drain status, and final data visibility. Set
-`LEADERBOARD_SCENARIO` to `stress`, `spike`, `breakpoint`, or `all`. The `all`
-option runs every scenario sequentially against the same database to reproduce
-the benchmark's cumulative pressure. `LEADERBOARD_DURATION_SCALE` can shorten
-a local smoke run; keep its default value of `1` for comparable measurements.
-
-The packaged `benchmark:aggregate` script is a representative multi-shape benchmark and is not the official acceptance workload. The official primary aggregate must be run concurrently as a one-request-per-second `last hour / 1m` loop.
-
-### Representative Benchmarks
-
-```bash
-npm run benchmark:query
-npm run benchmark:aggregate
-npm run benchmark:mixed
-```
-
-The query benchmark sends 30 samples per shape. The aggregate benchmark sends five samples per shape at one request per second. Five-sample p95/p99 values are directional, not stable production SLO measurements. The mixed benchmark includes representative GET traffic, primary aggregation, and occasional wide aggregation and is a stress/diagnostic workload.
+The benchmark creates an isolated Compose project. Keep Compose service names as `app` and `postgres`, and do not add fixed `container_name` values because they prevent isolated runs.
 
 ### Resource Measurement
 
@@ -561,9 +508,30 @@ Reported resource values are sampled peaks, not guaranteed instantaneous maxima 
 
 ## Measured Performance Results
 
-These results were measured against the current working tree using Docker Compose, one dedicated writer, four read connections, and the resource limits in the Compose file. The official baseline used one million starting rows; the higher-throughput ceiling benchmark started from a clean truncate and grew to 1.26 million rows.
+### Current Course CLI Tooling Run
 
-### Official Acceptance Result
+The full pinned course CLI completed successfully on Windows PowerShell with seed `6122026`.
+
+| Metric | Result |
+| --- | ---: |
+| CLI version | 0.2.5 |
+| Correctness | 15 / 15 |
+| Performance | 28.0 / 50 |
+| Observed load throughput | 9,746 logs/sec |
+| Observed POST p95 | 2,360 ms |
+| Queries | 6.0 / 15 |
+| Aggregate p95 | 2,441 ms |
+| Eventual consistency | 4 / 4 scenarios |
+| Reliability | 20.0 / 20 |
+| Total local score | 69.0 / 100 |
+
+Docker Desktop had `4 CPUs` and `7 GiB` available for this run. The CLI assigned `3.5 CPUs` to the application, PostgreSQL, and k6 generator combined, and reported generator-limited dispatch in every performance scenario. This validates the local tooling but is not comparable to a run with the recommended six or more Docker CPUs or to a final platform score.
+
+### Historical Repository-Local Results
+
+The following measurements were captured with retired repository-local scripts. They are retained as engineering history only; use the course CLI above for current measurements.
+
+#### Former Acceptance Result
 
 | Metric | Result |
 | --- | ---: |
@@ -589,12 +557,10 @@ The load generator finished with `inFlight=0` and `drained=true`.
 
 ### Leaderboard-Shaped Small-Request Baseline
 
-The external leaderboard uses approximately 33 logs per POST request, inferred
-from its accepted-log and HTTP-request counts. A clean local run of
-`benchmark:leaderboard` used that batch size for 120 seconds at a 15,000
-logs/second target while sending a moving last-hour aggregate once per second.
-This is a local approximation of the observed workload, not a claim that the
-external generator implementation is identical.
+The retired local generator used approximately 33 logs per POST request for
+120 seconds at a 15,000 logs/second target while sending a moving last-hour
+aggregate once per second. This is a historical local approximation, not a
+claim that the course generator implementation is identical.
 
 | Metric | Result |
 | --- | ---: |
@@ -671,8 +637,8 @@ Observed one-second Docker stats peaks during the official run:
 
 | Container | Peak CPU sample | Peak memory sample |
 | --- | ---: | ---: |
-| `logs_app` | 25.61% | 32.35 MiB |
-| `logs_postgres` | 99.54% | 489.4 MiB |
+| `app` | 25.61% | 32.35 MiB |
+| `postgres` | 99.54% | 489.4 MiB |
 
 ### Representative Result
 

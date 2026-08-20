@@ -35,6 +35,19 @@ describe("bearer authentication hook", () => {
     await app.close();
   });
 
+  it("rejects data access when authentication has no seeded key", async () => {
+    const app = createApp(undefined);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/protected",
+      headers: { authorization: "Bearer any-key" },
+    });
+
+    expect(response.statusCode).toBe(401);
+    await app.close();
+  });
+
   it("accepts the optional X-API-Key header", async () => {
     const app = createApp(token);
 
@@ -98,7 +111,7 @@ describe("bearer authentication hook", () => {
   });
 });
 
-function createApp(token: string) {
+function createApp(token: string | undefined) {
   const app = Fastify();
   app.get(
     "/protected",

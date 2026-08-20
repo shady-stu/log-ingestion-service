@@ -25,7 +25,7 @@ const failedAttempts = new Map<string, FailedAttempt>();
 const FULL_ACCESS_SCOPES: readonly AuthScope[] = ["ingest", "query"];
 
 export function createBearerAuthHook(
-  expectedKey: string,
+  expectedKey: string | undefined,
   options: AuthOptions = {}
 ): BearerAuthHook {
   const requiredScopes = options.requiredScopes ?? [];
@@ -34,7 +34,7 @@ export function createBearerAuthHook(
   return async function requireBearerAuth(request, reply) {
     const providedKey = readProvidedKey(request);
 
-    if (!providedKey || !keysMatch(expectedKey, providedKey)) {
+    if (!expectedKey || !providedKey || !keysMatch(expectedKey, providedKey)) {
       const retryAfter = recordFailedAttempt(request.ip);
 
       if (retryAfter !== undefined) {
@@ -57,6 +57,10 @@ export function createBearerAuthHook(
   };
 
   function readProvidedKey(request: FastifyRequest): string | undefined {
+    if (!expectedKey) {
+      return undefined;
+    }
+
     const authorization = request.headers.authorization;
     const apiKey = request.headers["x-api-key"];
     const candidates: string[] = [];

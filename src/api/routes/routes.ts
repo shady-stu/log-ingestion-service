@@ -10,11 +10,10 @@ import { registerLogsRoutes } from "./logs.js";
 import { runtimeConfig } from "../../config/runtime-config";
 
 export async function registerRoutes(app: FastifyInstance) {
-  const healthAuthHook = createRouteAuthHook();
   const queryAuthHook = createRouteAuthHook(["query"]);
   const ingestAuthHook = createRouteAuthHook(["ingest"]);
 
-  await registerHealthRoutes(app, healthAuthHook);
+  await registerHealthRoutes(app);
   await registerLogsRoutes(app, queryAuthHook, ingestAuthHook);
   await registerAdminRoutes(app);
 }
@@ -22,7 +21,7 @@ export async function registerRoutes(app: FastifyInstance) {
 function createRouteAuthHook(
   requiredScopes: readonly AuthScope[] = []
 ): BearerAuthHook | undefined {
-  return runtimeConfig.authEnabled && runtimeConfig.loadgenApiKey
+  return runtimeConfig.authEnabled
     ? createBearerAuthHook(runtimeConfig.loadgenApiKey, { requiredScopes })
     : undefined;
 }
