@@ -5,13 +5,7 @@ const TARGET_COPY_BATCH = 15000;
 const MAX_PENDING_LOGS = 30000;
 const FLUSH_DELAY_MS = 3;
 
-type PendingWrite = {
-  logs: Log[];
-  resolve: (accepted: number) => void;
-  reject: (error: unknown) => void;
-};
-
-type CapacityWaiter = {
+type QueuedWrite = {
   logs: Log[];
   resolve: (accepted: number) => void;
   reject: (error: unknown) => void;
@@ -29,8 +23,8 @@ export class WriteCoordinator {
   private readonly targetCopyBatch: number;
   private readonly maxPendingLogs: number;
   private readonly flushDelayMs: number;
-  private readonly pendingWrites: PendingWrite[] = [];
-  private readonly capacityWaiters: CapacityWaiter[] = [];
+  private readonly pendingWrites: QueuedWrite[] = [];
+  private readonly capacityWaiters: QueuedWrite[] = [];
   private pendingLogCount = 0;
   private peakPendingLogCount = 0;
   private flushTimer: NodeJS.Timeout | undefined;
@@ -157,33 +151,54 @@ export class WriteCoordinator {
     }
   }
 
-  private takeNextBatch(): PendingWrite[] {
-    const writes: PendingWrite[] = [];
+  private takeNextBatch(): QueuedWrite[] {
     let logCount = 0;
+    let writeCount = 0;
 
-    while (this.pendingWrites.length > 0 && logCount < this.targetCopyBatch) {
-      const write = this.pendingWrites.shift()!;
-      writes.push(write);
-      logCount += write.logs.length;
+    while (
+      writeCount < this.pendingWrites.length &&
+      logCount < this.targetCopyBatch
+    ) {
+      logCount += this.pendingWrites[writeCount].logs.length;
+      writeCount++;
     }
 
-    return writes;
+    return this.pendingWrites.splice(0, writeCount);
   }
 
   private releaseCapacityWaiters(): void {
-    while (this.capacityWaiters.length > 0) {
-      const waiter = this.capacityWaiters[0];
+    let availableLogs = this.maxPendingLogs - this.pendingLogCount;
+    let waiterCount = 0;
 
-      if (this.pendingLogCount + waiter.logs.length > this.maxPendingLogs) {
-        return;
+    while (waiterCount < this.capacityWaiters.length) {
+      const waiter = this.capacityWaiters[waiterCount];
+
+      if (waiter.logs.length > availableLogs) {
+        break;
       }
 
-      this.capacityWaiters.shift();
-      this.enqueueWrite(waiter);
+      availableLogs -= waiter.logs.length;
+      waiterCount++;
     }
+
+    if (waiterCount === 0) {
+      return;
+    }
+
+    const releasedWaiters = this.capacityWaiters.splice(0, waiterCount);
+
+    for (const waiter of releasedWaiters) {
+      this.pendingWrites.push(waiter);
+      this.pendingLogCount += waiter.logs.length;
+    }
+
+    this.peakPendingLogCount = Math.max(
+      this.peakPendingLogCount,
+      this.pendingLogCount
+    );
   }
 
-  private enqueueWrite(write: PendingWrite): void {
+  private enqueueWrite(write: QueuedWrite): void {
     this.pendingWrites.push(write);
     this.pendingLogCount += write.logs.length;
     this.peakPendingLogCount = Math.max(
@@ -212,7 +227,7 @@ export class WriteCoordinator {
   }
 }
 
-function combineLogs(writes: PendingWrite[]): Log[] {
+function combineLogs(writes: QueuedWrite[]): Log[] {
   const totalLogs = writes.reduce((total, write) => total + write.logs.length, 0);
   const logs = new Array<Log>(totalLogs);
   let index = 0;

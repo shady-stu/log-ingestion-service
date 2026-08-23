@@ -3,15 +3,33 @@ import { type Log } from "../../types";
 import { copyLogs } from "./logs-copy";
 
 const DB_ERROR_LOG_INTERVAL_MS = 5000;
+const RETRYABLE_DB_CODES = new Set([
+  "40001",
+  "40P01",
+  "53300",
+  "57P01",
+  "57P02",
+  "57P03",
+  "08000",
+  "08001",
+  "08003",
+  "08004",
+  "08006",
+  "08007",
+  "08P01",
+]);
 let lastDbErrorLogAt = 0;
+
+type CopyBatch = (logsData: Log[]) => Promise<void>;
 
 export async function copyLogsWithRetry(
   logsData: Log[],
-  maxAttempts: number
+  maxAttempts: number,
+  copyBatch: CopyBatch = copyLogs
 ): Promise<void> {
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
-      await copyLogs(logsData);
+      await copyBatch(logsData);
       return;
     } catch (error) {
       if (attempt === maxAttempts || !isRetryableDbError(error)) {
@@ -27,19 +45,7 @@ export async function copyLogsWithRetry(
 function isRetryableDbError(error: unknown): boolean {
   const code = (error as { code?: string }).code;
 
-  return code === "40001" ||
-    code === "40P01" ||
-    code === "53300" ||
-    code === "57P01" ||
-    code === "57P02" ||
-    code === "57P03" ||
-    code === "08000" ||
-    code === "08001" ||
-    code === "08003" ||
-    code === "08004" ||
-    code === "08006" ||
-    code === "08007" ||
-    code === "08P01";
+  return typeof code === "string" && RETRYABLE_DB_CODES.has(code);
 }
 
 function logBatchInsertError(

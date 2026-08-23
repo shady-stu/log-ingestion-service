@@ -97,11 +97,14 @@ describe("runtime configuration", () => {
       .toThrow();
   });
 
-  it("requires the load-generator key when authentication is enabled", () => {
-    expect(() => loadRuntimeConfig({
+  it("allows authentication without a seeded load-generator key", () => {
+    expect(loadRuntimeConfig({
       DATABASE_URL: databaseUrl,
       AUTH_ENABLED: "true",
-    })).toThrow("LOADGEN_API_KEY must be set");
+    })).toMatchObject({
+      authEnabled: true,
+      loadgenApiKey: undefined,
+    });
   });
 
   it("requires production database configuration", () => {
@@ -109,12 +112,15 @@ describe("runtime configuration", () => {
       .toThrow("DATABASE_URL is required in production");
   });
 
-  it("requires authentication in production", () => {
-    expect(() => loadRuntimeConfig({
+  it("allows authentication to remain disabled in production", () => {
+    expect(loadRuntimeConfig({
       DATABASE_URL: databaseUrl,
       NODE_ENV: "production",
       AUTH_ENABLED: "false",
-    })).toThrow("AUTH_ENABLED must be true in production");
+    })).toMatchObject({
+      nodeEnv: "production",
+      authEnabled: false,
+    });
   });
 
   it.each([

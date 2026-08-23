@@ -1,5 +1,5 @@
 import { type LogLevel, type LogValidationResult } from "../../types";
-import { isValidIsoTimestamp } from "../iso-timestamp";
+import { parseIsoTimestamp } from "../iso-timestamp";
 import { parseAttributes } from "./attributes";
 
 const MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
@@ -47,11 +47,15 @@ export function validateLog(value: unknown, now = Date.now()): LogValidationResu
 }
 
 function parseTimestamp(value: unknown, now: number): string | null {
-  if (typeof value !== "string" || !isValidIsoTimestamp(value)) {
+  if (typeof value !== "string") {
     return null;
   }
 
-  return Date.parse(value) - now <= MAX_FUTURE_SKEW_MS ? value : null;
+  const timestampMs = parseIsoTimestamp(value);
+
+  return timestampMs !== null && timestampMs - now <= MAX_FUTURE_SKEW_MS
+    ? value
+    : null;
 }
 
 function isLogLevel(value: unknown): value is LogLevel {

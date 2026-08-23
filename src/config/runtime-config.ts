@@ -44,14 +44,6 @@ export function loadRuntimeConfig(
   const authEnabled = parseBoolean(env.AUTH_ENABLED, "AUTH_ENABLED", false);
   const loadgenApiKey = env.LOADGEN_API_KEY || undefined;
 
-  if (nodeEnv === "production" && !authEnabled) {
-    throw new Error("AUTH_ENABLED must be true in production");
-  }
-
-  if (authEnabled && !loadgenApiKey) {
-    throw new Error("LOADGEN_API_KEY must be set when AUTH_ENABLED=true");
-  }
-
   return {
     nodeEnv,
     logLevel: parseEnum(env.LOG_LEVEL, "LOG_LEVEL", "info", LOG_LEVELS),

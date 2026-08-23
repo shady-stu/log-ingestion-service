@@ -2,11 +2,18 @@ const ISO_DATETIME_PATTERN =
   /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?(Z|[+-]\d{2}:?\d{2})$/;
 
 export function isValidIsoTimestamp(value: string): boolean {
+  return parseIsoTimestamp(value) !== null;
+}
+
+export function parseIsoTimestamp(value: string): number | null {
   const parts = ISO_DATETIME_PATTERN.exec(value);
 
-  return Boolean(
-    parts && isValidDateTimeParts(parts) && !Number.isNaN(Date.parse(value))
-  );
+  if (!parts || !isValidDateTimeParts(parts)) {
+    return null;
+  }
+
+  const timestampMs = Date.parse(value);
+  return Number.isNaN(timestampMs) ? null : timestampMs;
 }
 
 function isValidDateTimeParts(parts: RegExpExecArray): boolean {

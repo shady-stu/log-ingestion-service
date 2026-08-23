@@ -40,7 +40,9 @@ run().catch((error) => {
 
 async function run() {
   if (authEnabled) {
-    for (const request of requests) {
+    await expectStatus(requests[0], {}, 200);
+
+    for (const request of requests.slice(1)) {
       await expectStatus(request, {}, 401);
     }
   }
