@@ -14,6 +14,7 @@ The service is intentionally small and operationally focused:
 
 ## Contents
 
+- [Tech Stack](#tech-stack)
 - [Setup Instructions](#setup-instructions)
 - [Project Structure](#project-structure)
 - [API Documentation](#api-documentation)
@@ -23,10 +24,22 @@ The service is intentionally small and operationally focused:
 - [Attribute Storage Strategy](#attribute-storage-strategy)
 - [Retention Strategy](#retention-strategy)
 - [Authentication and Optional Features](#authentication-and-optional-features)
+- [Configuration Variables](#configuration-variables)
 - [Load-Test Methodology](#load-test-methodology)
 - [Measured Performance Results](#measured-performance-results)
+- [Bottlenecks and Optimizations](#bottlenecks-and-optimizations)
 - [Verification and CI](#verification-and-ci)
 - [Known Limitations](#known-limitations)
+
+## Tech Stack
+
+| Area | Technology |
+| --- | --- |
+| Runtime and API | Node.js 20, TypeScript, Fastify |
+| Data and ingestion | PostgreSQL, Binary `COPY`, `pg`, `pg-copy-streams` |
+| Schema and migrations | Drizzle ORM, Drizzle Kit |
+| Verification | Jest, TypeScript, ESLint, GitHub Actions |
+| Delivery | Docker, Docker Compose |
 
 ## Setup Instructions
 
@@ -95,7 +108,6 @@ src/
     routes/                 Route registration and scope assignment
   db/
     config.ts               Shared PostgreSQL client configuration
-    defaults.ts             Internal development database default
     migrate.ts              Startup migration runner
     migrations/             Committed SQL migrations
     pool.ts                 Four-connection read pool
@@ -106,7 +118,8 @@ src/
   services/                 Validation, ingestion, queries, aggregation,
                             retention, and write coordination
   types/                    Shared TypeScript API and domain types
-scripts/                    Load, seed, query, aggregate, and contract tools
+scripts/
+  contract-smoke-test.js    Authenticated and unauthenticated API contract checks
 tests/                      Unit and HTTP-level tests
 docker-compose.yml          PostgreSQL and application containers
 Dockerfile                  Build, migration, and startup sequence
@@ -130,7 +143,7 @@ Returns application readiness based on the dedicated writer connection.
 }
 ```
 
-The endpoint returns `200` when the writer is ready and `503` with `{ "status": "unavailable" }` otherwise. When authentication is enabled, it requires the configured API key.
+The endpoint returns `200` when the writer is ready and `503` with `{ "status": "unavailable" }` otherwise. It remains public when authentication is enabled so CI and external readiness probes can verify it without credentials.
 
 ### `POST /logs`
 
@@ -445,7 +458,7 @@ The optional purge endpoint is enabled only when `LOGS_PURGE_TOKEN` is non-empty
 | `RETENTION_DAYS` | `30` | Positive retention age in days |
 | `LOGS_PURGE_TOKEN` | unset | Registers optional purge route when non-empty |
 | `AUTH_ENABLED` | `false` | Enables route authentication when `true` |
-| `LOADGEN_API_KEY` | unset | Required when `AUTH_ENABLED=true` |
+| `LOADGEN_API_KEY` | unset | Optional full-scope credential; when omitted with authentication enabled, protected data endpoints return `401` because no credential is seeded |
 
 ### Docker Compose Variables
 
@@ -526,6 +539,8 @@ The full pinned course CLI completed successfully on Windows PowerShell with see
 | Total local score | 69.0 / 100 |
 
 Docker Desktop had `4 CPUs` and `7 GiB` available for this run. The CLI assigned `3.5 CPUs` to the application, PostgreSQL, and k6 generator combined, and reported generator-limited dispatch in every performance scenario. This validates the local tooling but is not comparable to a run with the recommended six or more Docker CPUs or to a final platform score.
+
+The current repository records this result in the README but does not commit the raw CLI output. Use the pinned reproduction command above to produce a fresh, independently inspectable run.
 
 ### Historical Repository-Local Results
 
@@ -698,7 +713,7 @@ docker compose config
 
 GitHub Actions runs `npm ci`, ESLint, TypeScript type-checking, Jest, the production build, and the required contract smoke test in both authentication configurations.
 
-The unauthenticated contract starts with `AUTH_ENABLED=false` and checks all four required endpoints without credentials. The authenticated contract starts with `AUTH_ENABLED=true` and a `LOADGEN_API_KEY`, checks that missing credentials return `401`, and checks that the seeded bearer key reaches all four endpoints.
+The unauthenticated contract starts with `AUTH_ENABLED=false` and checks all four required endpoints without credentials. The authenticated contract verifies that `/health` remains public, the three data endpoints return `401` without credentials, and all four endpoints succeed when the seeded bearer key is supplied.
 
 The application image applies migrations automatically, so CI does not require a manual migration step before the contract smoke tests.
 
@@ -724,3 +739,4 @@ The current project does not implement:
 - Identity values can skip up to a cached block after a crash or restart; API ordering and uniqueness do not depend on contiguous IDs.
 
 Representative benchmarks use small samples and should not be used as production SLO evidence without longer, repeated runs.
+
